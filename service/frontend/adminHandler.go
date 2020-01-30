@@ -30,7 +30,6 @@ import (
 
 	"github.com/olivere/elastic"
 	"github.com/pborman/uuid"
-	"go.uber.org/cadence/.gen/go/shared"
 
 	"github.com/uber/cadence/.gen/go/admin"
 	"github.com/uber/cadence/.gen/go/admin/adminserviceserver"
@@ -813,7 +812,7 @@ func (adh *AdminHandler) ReadDLQMessages(
 	var token []byte
 	switch request.GetType() {
 	case replicator.DLQTypeReplication:
-		return nil, &shared.InternalServiceError{Message: "Not implement."}
+		return adh.GetHistoryClient().ReadDLQMessages(ctx, request)
 	case replicator.DLQTypeDomain:
 		tasks, token, err = adh.domainDLQHandler.ReadMessages(
 			int(request.GetInclusiveEndMessageID()),
@@ -854,7 +853,7 @@ func (adh *AdminHandler) PurgeDLQMessages(
 
 	switch request.GetType() {
 	case replicator.DLQTypeReplication:
-		return &shared.InternalServiceError{Message: "Not implement."}
+		return adh.GetHistoryClient().PurgeDLQMessages(ctx, request)
 	case replicator.DLQTypeDomain:
 		err = adh.domainDLQHandler.PurgeMessages(
 			int(request.GetInclusiveEndMessageID()),
@@ -892,7 +891,7 @@ func (adh *AdminHandler) MergeDLQMessages(
 	var token []byte
 	switch request.GetType() {
 	case replicator.DLQTypeReplication:
-		return nil, &shared.InternalServiceError{Message: "Not implement."}
+		return adh.GetHistoryClient().MergeDLQMessages(ctx, request)
 	case replicator.DLQTypeDomain:
 		token, err = adh.domainDLQHandler.MergeMessages(
 			int(request.GetInclusiveEndMessageID()),
