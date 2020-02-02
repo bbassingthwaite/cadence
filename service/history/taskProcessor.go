@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Uber Technologies, Inc.
+// Copyright (c) 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -123,15 +123,15 @@ func (t *taskProcessor) start() {
 		notificationChan := t.workerNotificationChans[i]
 		go t.taskWorker(notificationChan)
 	}
-	t.logger.Info("Queue task processor started.")
+	t.logger.Info("Task processor started.")
 }
 
 func (t *taskProcessor) stop() {
 	close(t.shutdownCh)
 	if success := common.AwaitWaitGroup(&t.workerWG, time.Minute); !success {
-		t.logger.Warn("Queue task processor timed out on shutdown.")
+		t.logger.Warn("Task processor timed out on shutdown.")
 	}
-	t.logger.Info("Queue task processor shutdown.")
+	t.logger.Info("Task processor shutdown.")
 }
 
 func (t *taskProcessor) taskWorker(

@@ -604,6 +604,10 @@ const (
 
 	// SequentialTaskProcessingScope is used by sequential task processing logic
 	SequentialTaskProcessingScope
+	// ParallelTaskProcessingScope is used by parallel task processing logic
+	ParallelTaskProcessingScope
+	// TaskSchedulerScope is used by task scheduler logic
+	TaskSchedulerScope
 
 	// HistoryArchiverScope is used by history archivers
 	HistoryArchiverScope
@@ -1259,6 +1263,8 @@ var ScopeDefs = map[ServiceIdx]map[int]scopeDefinition{
 		ElasticsearchCountWorkflowExecutionsScope:                  {operation: "CountWorkflowExecutions"},
 		ElasticsearchDeleteWorkflowExecutionsScope:                 {operation: "DeleteWorkflowExecution"},
 		SequentialTaskProcessingScope:                              {operation: "SequentialTaskProcessing"},
+		ParallelTaskProcessingScope:                                {operation: "ParallelTaskProcessing"},
+		TaskSchedulerScope:                                         {operation: "TaskScheduler"},
 
 		HistoryArchiverScope:    {operation: "HistoryArchiver"},
 		VisibilityArchiverScope: {operation: "VisibilityArchiver"},
@@ -1484,6 +1490,7 @@ const (
 	CadenceErrBadBinaryCounter
 	CadenceErrClientVersionNotSupportedCounter
 	CadenceErrIncompleteHistoryCounter
+	CadenceErrNonDeterministicCounter
 	PersistenceRequests
 	PersistenceFailures
 	PersistenceLatency
@@ -1529,6 +1536,13 @@ const (
 	SequentialTaskQueueSize
 	SequentialTaskQueueProcessingLatency
 	SequentialTaskTaskProcessingLatency
+
+	ParallelTaskSubmitRequest
+	ParallelTaskSubmitLatency
+	ParallelTaskTaskProcessingLatency
+
+	PriorityTaskSubmitRequest
+	PriorityTaskSubmitLatency
 
 	HistoryArchiverArchiveNonRetryableErrorCount
 	HistoryArchiverArchiveTransientErrorCount
@@ -1835,6 +1849,7 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		CadenceErrBadBinaryCounter:                          {metricName: "cadence_errors_bad_binary", metricType: Counter},
 		CadenceErrClientVersionNotSupportedCounter:          {metricName: "cadence_errors_client_version_not_supported", metricType: Counter},
 		CadenceErrIncompleteHistoryCounter:                  {metricName: "cadence_errors_incomplete_history", metricType: Counter},
+		CadenceErrNonDeterministicCounter:                   {metricName: "cadence_errors_nondeterministic", metricType: Counter},
 		PersistenceRequests:                                 {metricName: "persistence_requests", metricType: Counter},
 		PersistenceFailures:                                 {metricName: "persistence_errors", metricType: Counter},
 		PersistenceLatency:                                  {metricName: "persistence_latency", metricType: Timer},
@@ -1873,6 +1888,11 @@ var MetricDefs = map[ServiceIdx]map[int]metricDefinition{
 		SequentialTaskQueueSize:                             {metricName: "sequentialtask_queue_size", metricType: Timer},
 		SequentialTaskQueueProcessingLatency:                {metricName: "sequentialtask_queue_processing_latency", metricType: Timer},
 		SequentialTaskTaskProcessingLatency:                 {metricName: "sequentialtask_task_processing_latency", metricType: Timer},
+		ParallelTaskSubmitRequest:                           {metricName: "paralleltask_submit_request", metricType: Counter},
+		ParallelTaskSubmitLatency:                           {metricName: "paralleltask_submit_latency", metricType: Timer},
+		ParallelTaskTaskProcessingLatency:                   {metricName: "paralleltask_task_processing_latency", metricType: Timer},
+		PriorityTaskSubmitRequest:                           {metricName: "prioritytask_submit_request", metricType: Counter},
+		PriorityTaskSubmitLatency:                           {metricName: "prioritytask_submit_latency", metricType: Timer},
 
 		HistoryArchiverArchiveNonRetryableErrorCount:              {metricName: "history_archiver_archive_non_retryable_error", metricType: Counter},
 		HistoryArchiverArchiveTransientErrorCount:                 {metricName: "history_archiver_archive_transient_error", metricType: Counter},

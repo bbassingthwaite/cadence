@@ -37,8 +37,8 @@ const (
 	defaultPageSize = 1000
 )
 
-// AdminGetDLQInfo get DLQ metadata
-func AdminGetDLQInfo(c *cli.Context) {
+// AdminGetDLQMessages gets DLQ metadata
+func AdminGetDLQMessages(c *cli.Context) {
 	ctx, cancel := newContext(c)
 	defer cancel()
 
@@ -47,9 +47,9 @@ func AdminGetDLQInfo(c *cli.Context) {
 	outputFile := getOutputFile(c.String(FlagOutputFilename))
 	defer outputFile.Close()
 
-	maxMessageCount := common.EndMessageID
+	remainingMessageCount := common.EndMessageID
 	if c.IsSet(FlagMaxMessageCount) {
-		maxMessageCount = c.Int64(FlagMaxMessageCount)
+		remainingMessageCount = c.Int64(FlagMaxMessageCount)
 	}
 	var lastMessageID *int64
 	if c.IsSet(FlagLastMessageID) {
@@ -75,21 +75,24 @@ func AdminGetDLQInfo(c *cli.Context) {
 
 	iterator := collection.NewPagingIterator(paginationFunc)
 	var lastReadMessageID int
-	for iterator.HasNext() && maxMessageCount > 0 {
+	for iterator.HasNext() && remainingMessageCount > 0 {
 		item, err := iterator.Next()
 		if err != nil {
 			ErrorAndExit(fmt.Sprintf("fail to read dlq message. Last read message id: %v", lastReadMessageID), err)
 		}
 
 		task := item.(*replicator.ReplicationTask)
-		taskStr, err := json.Marshal(task)
+		taskStr, err := json.MarshalIndent(task, "", " ")
 		if err != nil {
-			ErrorAndExit(fmt.Sprintf("fail to envode dlq message. Last read message id: %v", lastReadMessageID), err)
+			ErrorAndExit(fmt.Sprintf("fail to encode dlq message. Last read message id: %v", lastReadMessageID), err)
 		}
 
 		lastReadMessageID = int(*task.SourceTaskId)
-		maxMessageCount--
+		remainingMessageCount--
 		_, err = outputFile.WriteString(fmt.Sprintf("%v\n", string(taskStr)))
+		if err != nil {
+			ErrorAndExit("fail to print dlq messages.", err)
+		}
 	}
 }
 
@@ -104,15 +107,7 @@ func AdminPurgeDLQMessages(c *cli.Context) {
 	if c.IsSet(FlagLastMessageID) {
 		lastMessageID = common.Int64Ptr(c.Int64(FlagLastMessageID))
 	} else {
-		fmt.Println("Are you sure to purge all DLQ messages without a upper boundary? (Y/n)")
-		reader := bufio.NewReader(os.Stdin)
-		confirm, err := reader.ReadByte()
-		if err != nil {
-			panic(err)
-		}
-		if confirm != 'Y' {
-			osExit(0)
-		}
+		confirmOrExit("Are you sure to purge all DLQ messages without a upper boundary?")
 	}
 
 	adminClient := cFactory.ServerAdminClient(c)
@@ -122,9 +117,10 @@ func AdminPurgeDLQMessages(c *cli.Context) {
 	}); err != nil {
 		ErrorAndExit("Failed to purge dlq", nil)
 	}
+	fmt.Println("Successfully purge DLQ Messages.")
 }
 
-// AdminMergeDLQMessages merge message from DLQ
+// AdminMergeDLQMessages merges message from DLQ
 func AdminMergeDLQMessages(c *cli.Context) {
 	ctx, cancel := newContext(c)
 	defer cancel()
@@ -135,34 +131,25 @@ func AdminMergeDLQMessages(c *cli.Context) {
 	if c.IsSet(FlagLastMessageID) {
 		lastMessageID = common.Int64Ptr(c.Int64(FlagLastMessageID))
 	} else {
-		fmt.Println("Are you sure to merge all DLQ messages without a upper boundary? (Y/n)")
-		reader := bufio.NewReader(os.Stdin)
-		confirm, err := reader.ReadByte()
-		if err != nil {
-			panic(err)
-		}
-		if confirm != 'Y' {
-			osExit(0)
-		}
+		confirmOrExit("Are you sure to merge all DLQ messages without a upper boundary?")
 	}
 
 	adminClient := cFactory.ServerAdminClient(c)
-	op := func(token []byte) (*replicator.MergeDLQMessagesResponse, error) {
-		return adminClient.MergeDLQMessages(ctx, &replicator.MergeDLQMessagesRequest{
-			Type:                  toQueueType(dlqType),
-			InclusiveEndMessageID: lastMessageID,
-			MaximumPageSize:       common.Int32Ptr(defaultPageSize),
-			NextPageToken:         token,
-		})
+	request := &replicator.MergeDLQMessagesRequest{
+		Type:                  toQueueType(dlqType),
+		InclusiveEndMessageID: lastMessageID,
+		MaximumPageSize:       common.Int32Ptr(defaultPageSize),
 	}
 
-	var pageToken []byte
-	for hasMore := true; hasMore; hasMore = len(pageToken) > 0 {
-		resp, err := op(pageToken)
+	var response *replicator.MergeDLQMessagesResponse
+	var err error
+	for response == nil || len(response.GetNextPageToken()) > 0 {
+		response, err = adminClient.MergeDLQMessages(ctx, request)
 		if err != nil {
 			ErrorAndExit("Failed to merge DLQ message", err)
 		}
-		pageToken = resp.GetNextPageToken()
+
+		request.NextPageToken = response.NextPageToken
 		fmt.Printf("Successfully merged %v messages. More messages to merge.\n", defaultPageSize)
 	}
 	fmt.Println("Successfully merged all messages.")
@@ -178,4 +165,16 @@ func toQueueType(dlqType string) *replicator.DLQType {
 		ErrorAndExit("The queue type is not supported.", fmt.Errorf("the queue type is not supported. Type: %v", dlqType))
 	}
 	return nil
+}
+
+func confirmOrExit(message string) {
+	fmt.Println(message + " (Y/n)")
+	reader := bufio.NewReader(os.Stdin)
+	confirm, err := reader.ReadByte()
+	if err != nil {
+		panic(err)
+	}
+	if confirm != 'Y' {
+		osExit(0)
+	}
 }
